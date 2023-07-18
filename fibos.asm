@@ -2,275 +2,316 @@
 
 section .text          
    global _start
+
 	 
-_start:   
-   ;User prompt             
-   mov eax, 4
-   mov ebx, 1
-   mov ecx, userMsg       
-   mov edx, lenUserMsg
+_start: 
+   ;user prompt             
+   mov rax, 4
+   mov rbx, 1
+   mov rcx, userMsg       
+   mov rdx, lenUserMsg
    int 80h
 
-   ;Read and store the user input
-   mov eax, 3
-   mov ebx, 2
-   mov ecx, num  
-   mov edx, 4         
+   ;read and store the user input
+   mov rax, 3
+   mov rbx, 2
+   mov rcx, memory  
+   mov rdx, 8         
    int 80h
-   mov edx, num
+   mov rdx, memory
 
    ;convert string to int
-   call atoi1
-   mov edi,eax
-   call f
+   call atoi_input
+   mov rdi,rax
 
-   ; Exit code
-   mov eax, 1
-   mov ebx, 0
-   int 80h
+   ;function containing logic to print fibonacci series
+   call print_fibo
+    
+   ;exit sys_call 
+    call exit
 
-   f:   
-      cmp edi,1
-      jl end
 
-      ;first term assigned value 0
-      mov esi, '0'
-      mov [first], esi 
+print_fibo: 
+    ;check whether input is valid
+    cmp rdi,1
+    jl end
 
-      ;first term printed   
-      mov eax, 4
-      mov ebx, 1
-      mov ecx, first     
-      mov edx, 1
-      int 80h
+    ;first term assigned value 0
+    mov rsi, '0'         
+    mov [memory], rsi
 
-      ;comma print  
-      mov eax, 4
-      mov ebx, 1
-      mov ecx, comma    
-      mov edx, c_length
-      int 80h
+    ;first term printed   
+    mov rax, 4
+    mov rbx, 1
+    mov rcx, memory     
+    mov rdx, 8
+    int 80h
+    
+    ;first term moved to register
+    mov r8,[memory]
+    
+    ;check if input is 1 (as we need not print comma in that case)
+    cmp rdi,1
+    je series_complete
+
+    ;comma print  
+    mov rax, 4
+    mov rbx, 1
+    mov rcx, comma    
+    mov rdx, cLength
+    int 80h
   
-      ;value of counter decreased
-      sub edi, 0x1         
-      CMP	edi, 0
-      JG next1
+    ;value of counter decreased
+    sub rdi, 0x1         
+    cmp	rdi, 0
+    jg print_t2
 
-      ;exit sys_call
-      mov eax,1             
-      xor ebx,ebx
-      int 0x80              
+    call exit
 
-      next1 : 
-         ;second term assigned value
-         mov esi, '1'         
-         mov [second], esi
+
+print_t2 : 
+    ;second term assigned value
+    mov rsi, '1'         
+    mov [memory], rsi
          
-         ;second term printed
-         mov eax, 4
-         mov ebx, 1
-         mov ecx, second
-         mov edx, 1
-         int 80h
+    ;second term printed
+    mov rax, 4
+    mov rbx, 1
+    mov rcx, memory
+    mov rdx, 8
+    int 80h
 
-         ;counter decreased
-         sub edi, 0x1
-         CMP	edi, 0
-         JG next
+    ;second term moved to register
+    mov r9,[memory]
 
-         ;exit sys_call
-         mov eax,1             
-         xor ebx,ebx
-         int 0x80          
+    ;counter decreased
+    sub rdi, 0x1
+    cmp rdi, 0
+    jg print_nextterm
 
-            next:
-               ;values of register reset
-               xor eax,eax
-               xor ebx,ebx
-               xor ecx,ecx
-               xor edx,edx
+    call exit
 
-               ;comma print  
-               mov eax, 4
-               mov ebx, 1
-               mov ecx, comma    
-               mov edx, c_length
-               int 80h    
 
-               ;calculation of next term
-               xor edx,edx
+print_nextterm:
+    ;values of register reset
+    xor rax,rax
+    xor rbx,rbx
+    xor rcx,rcx
+    xor rdx,rdx
 
-               ;first term converted to integer
-               mov edx, first
-               call atoi
-               xor ebx,ebx
-               mov ebx,eax
+    ;comma print  
+    mov rax, 4
+    mov rbx, 1
+    mov rcx, comma    
+    mov rdx, cLength
+    int 80h    
 
-               ;second term converted to integer
-               xor edx,edx
-               mov edx, second
-               call atoi
-               xor edx,edx
-               mov ecx,eax
+    ;calculation of next term
+    xor rdx,rdx
 
-               ;next term calculated
-               add ebx,ecx
-               xor esi,esi
-               mov eax,ebx
+    ;first term converted to integer
+    mov [memory],r8
+    mov rdx, memory
+    call atoi
+    xor rbx,rbx
+    mov rbx,rax
+
+    ;second term converted to integer
+    xor rdx,rdx
+    mov [memory],r9
+    mov rdx, memory
+    call atoi
+    xor rdx,rdx
+    mov rcx,rax
+
+    ;next term calculated
+    add rbx,rcx
+    mov rax,rbx
             
-               ;next term converted to string and printed
-               call itoa
-              
-               xor edx,edx
+    ;next term converted to string and printed
+    call itoa
 
-               ;terms updated
-               mov edx, [second]
-               mov [first], edx
-               xor edx,edx
-               mov edx, [ecx]
-               mov [second], edx
-               
-               ;counter decreases
-               sub edi, 0x1
-               CMP	edi, 0
-               JG next   ;loop
-               ret
+    ;terms updated
+    mov r8,r9
+    mov r9, [rcx]
+          
+    ;counter decreases
+    sub rdi, 0x1
+    cmp	rdi, 0
+    jg print_nextterm  ;loop
+    ret
+
 
 ;ascii to integer conversion function for input data
-atoi1:
-    mov eax, 0
-    mov esi, 0
-convert1:
+atoi_input:
+    mov rax, 0
+    mov rsi, 0
 
+    converttoint:
+    ;get the current character
+    movzx rsi, byte [rdx]
 
-    movzx esi, byte [edx]   ; Get the current character
-    cmp byte [edx + 1], 0   ; Check for string end
-    je done1    
-
-    cmp esi, '0'            ; Anything less than 0 is invalid
+    ;check for string end   
+    cmp byte [rdx + 1], 0   
+    je conversion_complete
+       
+    ;anything less than 0 is invalid
+    cmp rsi, '0'            
     jl error1
-    
-    cmp esi, '9'            ; Anything greater than 9 is invalid
+
+    ;anything greater than 9 is invalid
+    cmp rsi, '9'            
     jg error1
      
-    sub esi, '0'            ; Convert from ASCII to decimal 
-    imul eax, 10            ; Multiply total by 10
-   
-    add eax, esi            ; Add current digit to total
-    
-    inc edx                 ; Get the address of the next character
-    jmp convert1
+    ;convert from ASCII to decimal 
+    sub rsi, '0'
 
-error1:
-    mov eax, -1             ; Return -1 on error
+    ;multiply total by 10             
+    imul rax, 10            
+   
+    ;add current digit to total
+    add rax, rsi            
+    
+    ;get the address of the next character
+    inc rdx                 
+    jmp converttoint
+
+    error1:
+    ;return -1 on error
+    mov rax, -1             
  
-done1:
+    conversion_complete:
     ret
 
 
 ;integer to ascii conversion function
-
 itoa:
-    xor esi,esi
-    lea esi, [string + 0x5]  ;last index of string
+    xor rsi,rsi
+    ;last index of string
+    lea rsi, [string + 0x9]  
     
-loop:
-    ; divide
-    xor edx, edx
-    xor ecx,ecx
-    mov ecx, 0xa
-    div ecx        
+    loop:
+    ;divide
+    xor rdx, rdx
+    xor rcx,rcx
+    mov rcx, 0xa
+    div rcx        
 
-    ; convert remainder to ASCII and store
+    ;convert remainder to ASCII and store
     add dl, 0x30
-    mov [esi-1],dl
-    dec esi
+    mov [rsi-1],dl
+    dec rsi
 
-    ; if quotient is zero, done.
-    cmp eax, 0
+    ;if quotient is zero, done.
+    cmp rax, 0
     je print
 
     ;traversed through entire string
-    cmp esi,string
+    cmp rsi,string
     je print
     
     ; repeat.
     jmp loop
 
+    ;print next term procedure
     print:
-    mov eax,4
-    mov ebx,1
-    lea ecx,[string]
+    mov rax,4
+    mov rbx,1
+    lea rcx,[string]
+
     ;finding where string generation starts
-    sub esi, string
-    add ecx,esi
+    sub rsi, string
+    add rcx,rsi
 
     ;finding the final length of string
-    mov edx, len
-    sub edx,esi
-   
+    mov rdx, len
+    sub rdx,rsi
     
     int 0x80
     ret
 
-;ascii to integer conversion function for non input strings
+
+;ASCII(string) to integer conversion function for non input strings
 atoi:
-    mov eax, 0
-    mov esi, 0
+    mov rax, 0
+    mov rsi, 0
 
-convert:
+    convert:
+    ;get the current character
+    movzx rsi, byte [rdx]
+    ;check for \0   
+    test rsi,rsi            
+    je done  
 
-    movzx esi, byte [edx]   ; Get the current character
-    test esi,esi            ; Check for \0
-    je done    
-
-    cmp esi, '0'            ; Anything less than 0 is invalid
+    ;anything less than 0 is invalid
+    cmp rsi, '0'            
     jl error
     
-    cmp esi, '9'            ; Anything greater than 9 is invalid
+    ;anything greater than 9 is invalid
+    cmp rsi, '9'            
     jg error
      
-    sub esi, '0'            ; Convert from ASCII to decimal 
-    imul eax, 10            ; Multiply total by 10
+    ;convert from ASCII to decimal
+    sub rsi, '0'
+
+    ;multiply total by 10             
+    imul rax, 10            
    
-    add eax, esi            ; Add current digit to total
+    ;add current digit to total
+    add rax, rsi            
     
-    inc edx                 ; Get the address of the next character
+    ;get the address of the next character
+    inc rdx                 
     jmp convert
 
-error:
-    mov eax, -1             ; Return -1 on error
+    error:
+    ;return -1 on error
+    mov rax, -1             
  
-done:
+    done:
     ret
 
+
 end:
-      mov eax, 4
-      mov ebx, 1
-      mov ecx, errormsg     
-      mov edx, lenem
-      int 80h
+    mov rax, 4
+    mov rbx, 1
+    mov rcx, errorMsg     
+    mov rdx, lenEM
+    int 80h
 
-      mov eax,1
-      xor ebx,ebx
-      int 80h
+    call exit
 
 
-section .data                                   ;Data segment
-   userMsg db 'Enter the number of terms: '     ;Ask the user to enter a number
-   lenUserMsg equ $-userMsg                     ;The length of the message
-   comma db ','
-   c_length equ $ - comma
-   string dd "     "  
-   len equ $ - string
-   errormsg db "invalid input"
-   lenem equ $-errormsg
-                  
-section .bss           ;Uninitialized data
-   num resb 4
-   first resb 4
-   second resb 4
-   third resb 4
+exit:
+    ;exit code
+    mov rax, 1
+    mov rbx, 0
+    int 80h
+
+
+series_complete:
+    call exit
+
+
+;data segment
+section .data                                   
+    userMsg db 'Enter the number of terms: ' 
+    ;the length of the message    
+    lenUserMsg equ $-userMsg                     
+    comma db ','
+    cLength equ $ - comma
+    string dd "         "  
+    len equ $ - string
+    errorMsg db "Invalid input"
+    lenEM equ $-errorMsg
+
+
+;uninitialized data               
+section .bss           
+    memory resb 8
+    
+    
+  
 
 
 
